@@ -1,43 +1,73 @@
 import numpy as np
-import matplotlib.pyplot as plt
 
-# Parameters
-grid_size = (50, 50)  # Grid dimensions
-dt = 0.5  # Time step
-diffusion_coefficient = 0.1  # Diffusion constant
-n_iter = 50  # Number of iterations
+def define_problem():
+    """Define a sample mathematical problem: Sphere function"""
+    def sphere_function(position):
+        return np.sum(position**2)  # Sum of squares of the position vector
+    return sphere_function
 
-# Initialize the grid
-temperature = np.zeros(grid_size)
+def initialize_parameters():
+    """Initialize grid parameters"""
+    params = {
+        'grid_size': (10, 10),  # Grid of 10x10 cells
+        'num_iterations': 100,
+        'neighbor_radius': 1,
+        'lower_bound': -10,
+        'upper_bound': 10,
+        'dimensions': 2,  # Each solution has 2 dimensions
+    }
+    return params
 
-# Set initial conditions
-source_position = (25, 25)  # Heat source location
-temperature[source_position] = 100  # Initial temperature at the source
+def initialize_population(grid_size, lower_bound, upper_bound, dimensions):
+    """Initialize the grid with random positions"""
+    return np.random.uniform(lower_bound, upper_bound, size=grid_size + (dimensions,))
 
-# Define neighborhood interaction (Laplace operator for diffusion)
-def update_temperature(temperature):
-    new_temperature = temperature.copy()
-    for x in range(1, grid_size[0] - 1):
-        for y in range(1, grid_size[1] - 1):
-            # Calculate diffusion based on the average of neighboring cells
-            new_temperature[x, y] += diffusion_coefficient * dt * (
-                temperature[x + 1, y] + temperature[x - 1, y] +
-                temperature[x, y + 1] + temperature[x, y - 1] -
-                4 * temperature[x, y]
-            )
-    return new_temperature
+def evaluate_fitness(grid, fitness_function):
+    """Evaluate fitness for each cell"""
+    return np.apply_along_axis(fitness_function, -1, grid)
 
-# Simulation loop
-plt.ion()
-for t in range(n_iter):
-    temperature = update_temperature(temperature)
+def get_neighbors(grid, x, y, radius):
+    """Retrieve neighbors within a given radius"""
+    neighbors = []
+    for i in range(-radius, radius + 1):
+        for j in range(-radius, radius + 1):
+            if i == 0 and j == 0:
+                continue
+            nx, ny = (x + i) % grid.shape[0], (y + j) % grid.shape[1]
+            neighbors.append(grid[nx, ny])
+    return neighbors
 
-    if t % 10 == 0:  # Visualize every 10 iterations
-        plt.clf()
-        plt.imshow(temperature, cmap="hot", origin="lower")
-        plt.colorbar(label="Temperature")
-        plt.title(f"Heat Diffusion at Iteration {t}")
-        plt.pause(0.1)
+def update_states(grid, fitness_function, neighbor_radius):
+    """Update each cell based on neighbors' states"""
+    new_grid = grid.copy()
+    for x in range(grid.shape[0]):
+        for y in range(grid.shape[1]):
+            neighbors = get_neighbors(grid, x, y, neighbor_radius)
+            best_neighbor = min(neighbors, key=fitness_function)
+            if fitness_function(best_neighbor) < fitness_function(grid[x, y]):
+                new_grid[x, y] = best_neighbor
+    return new_grid
 
-plt.ioff()
-plt.show()
+def parallel_cellular_algorithm():
+    """Main function to execute the Parallel Cellular Algorithm"""
+    fitness_function = define_problem()  # Get the sphere function
+    params = initialize_parameters()  # Initialize parameters
+    grid = initialize_population(
+        params['grid_size'],
+        params['lower_bound'],
+        params['upper_bound'],
+        params['dimensions']
+    )
+    
+    for iteration in range(params['num_iterations']):
+        grid = update_states(grid, fitness_function, params['neighbor_radius'])
+        fitness_values = evaluate_fitness(grid, fitness_function)
+        best_solution = np.unravel_index(np.argmin(fitness_values), fitness_values.shape)
+        
+        print(f"Iteration {iteration}: Best Fitness = {fitness_values[best_solution]}")
+        print("Final Best Solution:", grid[best_solution])
+        print("Student Name: Jeevan A")
+        print("USN: 1BM22CS119")
+
+# Execute the algorithm
+parallel_cellular_algorithm()
